@@ -1,0 +1,39 @@
+{
+  "name": "react-native-dnd",
+  "version": "0.0.0",
+  "description": "Drag and Drop components for React Native",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dusansimic/react-native-dnd.git"
+  },
+  "keywords": [
+    "react",
+    "native",
+    "reactnative",
+    "drag",
+    "drop",
+    "dnd",
+    "dragndrop"
+  ],
+  "author": "Dušan Simić <dusan.simic1810@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dusansimic/react-native-dnd/issues"
+  },
+  "homepage": "https://github.com/dusansimic/react-native-dnd#readme",
+  "dependencies": {
+    "@tsconfig/react-native": "^1.0.4"
+  },
+  "peerDependencies": {
+    "react-native": "^0.67.2"
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.39",
+    "@types/react-native": "^0.66.15",
+    "react": "^17.0.2"
+  }
+}

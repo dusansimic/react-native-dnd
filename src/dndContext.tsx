@@ -1,21 +1,27 @@
-import {createContext, FC, useState} from 'react';
-import {DragView} from './dragView';
-import { DndContext, DndId, DNDRegistration, Draggable, Droppable, Position, RegisterDraggableFunction } from './types';
+import React, {createContext, FC, useState} from 'react';
+import {dragView} from './dragView';
+import {dropView} from './dropView';
+import {DndContext, DndId, Draggable, Droppable, Position} from './types';
 
-const dndContext = createContext<DndContext>({});
+const dndContext = createContext<DndContext>(undefined!);
 
-export const ProvideDnd: FC<{}> = ({children}) => {
+export const ProvideDnd: FC = ({children}) => {
 	const dnd = useProvideDnd();
 	return <dndContext.Provider value={dnd}>
 		{children}
-	</dndContext.Provider>
+	</dndContext.Provider>;
 };
 
-const useProvideDnd = (): DNDRegistration => {
+export const DndConsumer = dndContext.Consumer;
+export const DragView = dragView(dndContext.Consumer);
+export const DropView = dropView(dndContext.Consumer);
+
+const useProvideDnd = (): DndContext => {
 	const [draggables, setDraggables] = useState<Draggable[]>([]);
 	const [droppables, setDroppables] = useState<Droppable[]>([]);
 	const [dragOffset, setDragOffset] = useState<[number, number]>([0, 0]);
 	const [currentDragging, setCurrentDragging] = useState<DndId | undefined>(undefined);
+	const [currentDropping, setCurrentDropping] = useState<DndId | undefined>(undefined);
 
 	/**
 	 * Register a new draggable. If draggable with the same id is already registered, error is
@@ -33,10 +39,10 @@ const useProvideDnd = (): DNDRegistration => {
 			id,
 			layout: {x: 0, y: 0, width: 0, height: 0},
 			dragging: false,
-			...data
+			...data,
 		};
 
-		setDraggables((draggables) => [...draggables, draggable]);
+		setDraggables(draggables => [...draggables, draggable]);
 	};
 
 	/**
@@ -48,7 +54,7 @@ const useProvideDnd = (): DNDRegistration => {
 		setDraggables(ds => ds.map(
 			d => d.id === id
 				? {...d, ...data}
-				: d
+				: d,
 		));
 	};
 
@@ -75,7 +81,7 @@ const useProvideDnd = (): DNDRegistration => {
 		const droppable: Droppable = {
 			id,
 			layout: {x: 0, y: 0, width: 0, height: 0},
-			...data
+			...data,
 		};
 
 		setDroppables(ds => [...ds, droppable]);
@@ -90,7 +96,7 @@ const useProvideDnd = (): DNDRegistration => {
 		setDroppables(ds => ds.map(
 			d => d.id === id
 				? {...d, ...data}
-				: d
+				: d,
 		));
 	};
 
@@ -125,22 +131,60 @@ const useProvideDnd = (): DNDRegistration => {
 				draggable.onDragStart();
 			}
 		}
-	}
+	};
 
+	/**
+	 * Handle end of draggable drag.
+	 * @param id Draggable id
+	 * @param position Draggable position
+	 */
 	const handleDragEnd = (id: DndId, position: Position) => {
-      const droppable = this.getDroppableInArea(position);
-      const draggable = this.getDraggable(draggingId);
+		const droppable = getDroppableInArea(position);
+		const draggable = getDraggable(id);
 
-      if (draggable && droppable && droppable.onDrop) {
-        droppable.onDrop(draggable, position);
-      }
+		if (draggable && droppable?.onDrop) {
+			droppable.onDrop(draggable, position);
+		}
 
-      if (draggable && draggable.onDragEnd) {
-        draggable.onDragEnd(droppable);
-      }
+		if (draggable?.onDragEnd) {
+			draggable.onDragEnd(droppable);
+		}
 
-      this.setState({ currentDragging: undefined, dragOffset: [0, 0] });
-	}
+		setDragOffset([0, 0]);
+		setCurrentDragging(undefined);
+	};
+
+	/**
+	 * Handle move of a draggable.
+	 * @param id Draggable id
+	 * @param position Draggable position
+	 */
+	const handleDragMove = (id: DndId, position: Position) => {
+		const currentDroppable = getDroppableInArea(position);
+		const draggable = getDraggable(id);
+		const prevDropping = currentDropping;
+
+		// TODO: Nisam bas siguran koji se kurac ovde desava pa to treba analizirati
+		if (currentDroppable) {
+			if (currentDroppable.id !== currentDropping && draggable) {
+				setCurrentDropping(currentDroppable.id);
+
+				if (currentDroppable.onEnter) {
+					currentDroppable.onEnter(draggable, position);
+				}
+			}
+		} else if (currentDropping) {
+			if (prevDropping && draggable) {
+				const prevDroppable = getDroppable(prevDropping);
+
+				if (prevDroppable?.onLeave) {
+					prevDroppable.onLeave(draggable, position);
+				}
+			}
+
+			setCurrentDropping(undefined);
+		}
+	};
 
 	/**
 	 * Get a draggable matching the id. If match is not found, undefined is returned.
@@ -156,11 +200,26 @@ const useProvideDnd = (): DNDRegistration => {
 	 */
 	const getDroppable = (id?: DndId) => droppables.find(d => d.id === id);
 
-	const getDroppableInArea = (position: Position) => 
+	const getDroppableInArea = ({x, y}: Position) => {
+		const _x = x - dragOffset[0];
+		const _y = y - dragOffset[1];
 
-	const handleDragMove = () => {}
+		return droppables.find(({layout}) =>
+			_x >= layout.x
+			&& _y >= layout.y
+			&& _x <= layout.x + layout.width
+			&& _y <= layout.y + layout.height,
+		);
+	};
 
 	return {
+		// States
+		draggables,
+		droppables,
+		dragOffset,
+		currentDragging,
+		currentDropping,
+		// DNDRegistration
 		registerDraggable,
 		updateDraggable,
 		unregisterDraggable,
@@ -170,5 +229,8 @@ const useProvideDnd = (): DNDRegistration => {
 		handleDragStart,
 		handleDragEnd,
 		handleDragMove,
+		// DNDContext
+		getDraggable,
+		getDroppable,
 	};
-}
+};

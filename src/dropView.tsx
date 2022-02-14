@@ -1,6 +1,7 @@
-import React, {Context, FC, useEffect} from 'react';
+import React, {FC, useEffect} from 'react';
 import {LayoutChangeEvent, View} from 'react-native';
-import {DndContext, DroppableInnerProps, DroppableProps} from './types';
+import {dndContext} from './dndContext';
+import {DroppableInnerProps, DroppableProps} from './types';
 
 const BaseDropView: FC<DroppableInnerProps> = (
 	{children, __dndContext, customId, onDrop, onEnter, onLeave, onLayout},
@@ -47,27 +48,8 @@ const BaseDropView: FC<DroppableInnerProps> = (
 	};
 
 	return <View onLayout={localOnLayout} ref={handleRef} style={{zIndex: -1}}>{children}</View>;
-	// Return children({
-	// 	computeDistance,
-	// 	active: __dndContext.currentDragging === id,
-	// 	viewProps: {
-	// 		onLayout: localOnLayout,
-	// 		ref: handleRef,
-	// 		style: {
-	// 			zIndex: -1,
-	// 		},
-	// 	},
-	// }) as ReactElement<any, any> | null;
 };
 
-export const dropView = (Consumer: Context<DndContext>['Consumer']): FC<DroppableProps> => {
-	const DropView: FC<DroppableProps> = props => (
-		<Consumer>
-			{value => <BaseDropView {...props} __dndContext={value} />}
-		</Consumer>
-	);
-
-	DropView.displayName = 'ConnectedDropView';
-
-	return DropView;
-};
+export const DropView: FC<DroppableProps> = props => <dndContext.Consumer>
+	{value => <BaseDropView {...props} __dndContext={value} />}
+</dndContext.Consumer>;

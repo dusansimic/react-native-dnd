@@ -1,6 +1,7 @@
-import React, {Context, FC, useEffect, useRef} from 'react';
-import {Animated, PanResponder, View} from 'react-native';
-import {DndContext, DraggableInnerProps, DraggableProps} from './types';
+import React, {FC, useEffect, useRef} from 'react';
+import {Animated, NativeTouchEvent, PanResponder} from 'react-native';
+import {dndContext} from './dndContext';
+import {DraggableInnerProps, DraggableProps} from './types';
 
 const BaseDragView: FC<DraggableInnerProps> = (
 	{children, __dndContext, customId, bounceBack, onDragStart, onDragEnd, payload},
@@ -28,28 +29,24 @@ const BaseDragView: FC<DraggableInnerProps> = (
 		__dndContext.updateDraggable(id, {payload});
 	}, [payload]);
 
-	const moveEvent = Animated.event([null, {dx: pan.x, dy: pan.y}], {
-		useNativeDriver: true,
-	});
-
-	// Let element: View | undefined;
-
 	const panResponder = useRef(PanResponder.create({
+		onStartShouldSetPanResponder: () => true,
 		onMoveShouldSetPanResponder: () => true,
-		onPanResponderMove(e, gesture) {
-			const {pageX, pageY} = e.nativeEvent;
-
-			__dndContext.handleDragMove(id, {x: pageX, y: pageY});
-			moveEvent(e, gesture);
-		},
-		onPanResponderGrant() {
+		onPanResponderMove: Animated.event<NativeTouchEvent>([null, {dx: pan.x, dy: pan.y}], {
+			useNativeDriver: false,
+			listener: ({nativeEvent: {pageX, pageY}}) => {
+				console.log(pageX, pageY);
+				__dndContext.handleDragMove(id, {x: pageX, y: pageY});
+			},
+		}),
+		onPanResponderGrant: () => {
 			console.warn('Grant');
 		},
-		onPanResponderStart({nativeEvent: {pageX, pageY}}) {
+		onPanResponderStart: ({nativeEvent: {pageX, pageY}}) => {
 			console.log('Started');
 			__dndContext.handleDragStart(id, {x: pageX, y: pageY});
 		},
-		onPanResponderRelease({nativeEvent: {pageX, pageY}}) {
+		onPanResponderRelease: ({nativeEvent: {pageX, pageY}}) => {
 			if (bounceBack) {
 				Animated.spring(pan, {
 					toValue: {x: 0, y: 0},
@@ -61,57 +58,14 @@ const BaseDragView: FC<DraggableInnerProps> = (
 		},
 	})).current;
 
-	// Const localOnLayout = (event: LayoutChangeEvent) => {
-	// 	if (onLayout) {
-	// 		onLayout(event);
-	// 	}
-
-	// 	measure();
-	// };
-
-	// const handleRef = (el: any) => {
-	// 	/* eslint-disable */
-	// 	element = el?.getNode ? el.getNode() : el;
-	// 	/* eslint-enable */
-	// };
-
-	// const measure = () => {
-	// 	element?.measureInWindow((x, y, width, height) => {
-	// 		__dndContext.updateDraggable(id, {layout: {x, y, width, height}});
-	// 	});
-	// };
-
-	return (<View>
-		<Animated.View
-			// OnLayout={localOnLayout}
-			style={{transform: pan.getTranslateTransform()}}
-			// Ref={handleRef}
-			{...panResponder.panHandlers}
-		>
-			{children}
-		</Animated.View>
-	</View>);
-	// Return children({
-	// 	viewProps: {
-	// 		onLayout: localOnLayout,
-	// 		// @ts-ignore
-	// 		style: {
-	// 			transform: pan.getTranslateTransform(),
-	// 		},
-	// 		ref: handleRef,
-	// 		...panResponder.panHandlers,
-	// 	},
-	// }) as ReactElement<any, any> | null;
+	return <Animated.View
+		style={{transform: pan.getTranslateTransform()}}
+		{...panResponder.panHandlers}
+	>
+		{children}
+	</Animated.View>;
 };
 
-export const dragView = (Consumer: Context<DndContext>['Consumer']): FC<DraggableProps> => {
-	const DragView: FC<DraggableProps> = props => (
-		<Consumer>
-			{value => <BaseDragView {...props} __dndContext={value} />}
-		</Consumer>
-	);
-
-	DragView.displayName = 'ConnectedDragView';
-
-	return DragView;
-};
+export const DragView: FC<DraggableProps> = props => <dndContext.Consumer>
+	{value => <BaseDragView {...props} __dndContext={value} />}
+</dndContext.Consumer>;

@@ -1,20 +1,19 @@
 import React, {createContext, FC, useState} from 'react';
-import {dragView} from './dragView';
-import {dropView} from './dropView';
+// Import {dragView} from './dragView';
+// import {dropView} from './dropView';
 import {DndContext, DndId, Draggable, Droppable, Position} from './types';
 
-const dndContext = createContext<DndContext>(undefined!);
+export const dndContext = createContext<DndContext>(undefined!);
 
-export const ProvideDnd: FC = ({children}) => {
+export const DndProvider: FC = ({children}) => {
 	const dnd = useProvideDnd();
 	return <dndContext.Provider value={dnd}>
 		{children}
 	</dndContext.Provider>;
 };
 
-export const DndConsumer = dndContext.Consumer;
-export const DragView = dragView(dndContext.Consumer);
-export const DropView = dropView(dndContext.Consumer);
+// Export const DragView = dragView(Consumer);
+// export const DropView = dropView(Consumer);
 
 const useProvideDnd = (): DndContext => {
 	const [draggables, setDraggables] = useState<Draggable[]>([]);

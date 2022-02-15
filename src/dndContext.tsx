@@ -1,24 +1,19 @@
 import React, {createContext, FC, useState} from 'react';
-// Import {dragView} from './dragView';
-// import {dropView} from './dropView';
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {DndContext, DndId, Draggable, Droppable, Position} from './types';
 
 export const dndContext = createContext<DndContext>(undefined!);
 
 export const DndProvider: FC = ({children}) => {
 	const dnd = useProvideDnd();
-	return <dndContext.Provider value={dnd}>
+	return <dndContext.Provider value={dnd}><GestureHandlerRootView>
 		{children}
-	</dndContext.Provider>;
+	</GestureHandlerRootView></dndContext.Provider>;
 };
-
-// Export const DragView = dragView(Consumer);
-// export const DropView = dropView(Consumer);
 
 const useProvideDnd = (): DndContext => {
 	const [draggables, setDraggables] = useState<Draggable[]>([]);
 	const [droppables, setDroppables] = useState<Droppable[]>([]);
-	const [dragOffset, setDragOffset] = useState<[number, number]>([0, 0]);
 	const [currentDragging, setCurrentDragging] = useState<DndId | undefined>(undefined);
 	const [currentDropping, setCurrentDropping] = useState<DndId | undefined>(undefined);
 
@@ -112,21 +107,14 @@ const useProvideDnd = (): DndContext => {
 	 * @param id Draggable id
 	 * @param position Draggable position
 	 */
-	const handleDragStart = (id: DndId, position: Position) => {
+	const handleDragStart = (id: DndId, _position: Position) => {
 		const draggable = getDraggable(id);
 
 		if (draggable) {
-			const {layout} = draggable;
-
-			const center = [
-				layout.x - Math.round(layout.width / 2),
-				layout.y - Math.round(layout.height / 2),
-			];
-
-			setDragOffset([position.x - center[0], position.y - center[1]]);
 			setCurrentDragging(id);
 
 			if (draggable.onDragStart) {
+				console.warn('should start');
 				draggable.onDragStart();
 			}
 		}
@@ -138,18 +126,21 @@ const useProvideDnd = (): DndContext => {
 	 * @param position Draggable position
 	 */
 	const handleDragEnd = (id: DndId, position: Position) => {
-		const droppable = getDroppableInArea(position);
 		const draggable = getDraggable(id);
+		if (!draggable) {
+			return;
+		}
 
-		if (draggable && droppable?.onDrop) {
+		const droppable = getDroppableInArea(position);
+
+		if (droppable?.onDrop) {
 			droppable.onDrop(draggable, position);
 		}
 
-		if (draggable?.onDragEnd) {
+		if (draggable.onDragEnd) {
 			draggable.onDragEnd(droppable);
 		}
 
-		setDragOffset([0, 0]);
 		setCurrentDragging(undefined);
 	};
 
@@ -159,13 +150,17 @@ const useProvideDnd = (): DndContext => {
 	 * @param position Draggable position
 	 */
 	const handleDragMove = (id: DndId, position: Position) => {
-		const currentDroppable = getDroppableInArea(position);
 		const draggable = getDraggable(id);
+		if (!draggable) {
+			return;
+		}
+
+		const currentDroppable = getDroppableInArea(position);
 		const prevDropping = currentDropping;
 
 		// TODO: Nisam bas siguran koji se kurac ovde desava pa to treba analizirati
 		if (currentDroppable) {
-			if (currentDroppable.id !== currentDropping && draggable) {
+			if (currentDroppable.id !== currentDropping) {
 				setCurrentDropping(currentDroppable.id);
 
 				if (currentDroppable.onEnter) {
@@ -173,7 +168,7 @@ const useProvideDnd = (): DndContext => {
 				}
 			}
 		} else if (currentDropping) {
-			if (prevDropping && draggable) {
+			if (prevDropping) {
 				const prevDroppable = getDroppable(prevDropping);
 
 				if (prevDroppable?.onLeave) {
@@ -199,23 +194,17 @@ const useProvideDnd = (): DndContext => {
 	 */
 	const getDroppable = (id?: DndId) => droppables.find(d => d.id === id);
 
-	const getDroppableInArea = ({x, y}: Position) => {
-		const _x = x - dragOffset[0];
-		const _y = y - dragOffset[1];
-
-		return droppables.find(({layout}) =>
-			_x >= layout.x
-			&& _y >= layout.y
-			&& _x <= layout.x + layout.width
-			&& _y <= layout.y + layout.height,
-		);
-	};
+	const getDroppableInArea = (position: Position) => droppables.find(({layout}) =>
+		position.x >= layout.x
+		&& position.y >= layout.y
+		&& position.x <= layout.x + layout.width
+		&& position.y <= layout.y + layout.height,
+	);
 
 	return {
 		// States
 		draggables,
 		droppables,
-		dragOffset,
 		currentDragging,
 		currentDropping,
 		// DNDRegistration

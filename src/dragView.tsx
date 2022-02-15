@@ -1,17 +1,45 @@
-import React, {FC, useEffect, useRef} from 'react';
-import {Animated, NativeTouchEvent, PanResponder} from 'react-native';
+import React, {createRef, FC, useEffect} from 'react';
+import {PanGestureHandler} from 'react-native-gesture-handler';
+import Animated, {runOnJS, useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, withSpring} from 'react-native-reanimated';
 import {dndContext} from './dndContext';
-import {DraggableInnerProps, DraggableProps} from './types';
+import {DraggableInnerProps, DraggableProps, Position} from './types';
+
+type GestureContext = {
+	startX: number;
+	startY: number;
+};
 
 const BaseDragView: FC<DraggableInnerProps> = (
 	{children, __dndContext, customId, bounceBack, onDragStart, onDragEnd, payload},
 ) => {
-	const pan = useRef(new Animated.ValueXY()).current;
-	const id = customId ?? Symbol('dragview');
-	console.warn('Hi there');
+	const x = useSharedValue(0);
+	const y = useSharedValue(0);
+	const id = customId!;
+	const ref = createRef<Animated.View>();
+
+	const handleDragStart = (position: Position) => {
+		__dndContext.handleDragStart(id, position);
+	};
+
+	const handleDragMove = (position: Position) => {
+		__dndContext.handleDragMove(id, position);
+	};
+
+	const handleDragEnd = (position: Position) => {
+		__dndContext.handleDragEnd(id, position);
+	};
+
+	const onLayout = () => {
+		measure();
+	};
+
+	const measure = () => {
+		ref.current?.measureInWindow((x, y, width, height) => {
+			__dndContext.updateDroppable(id, {layout: {x, y, width, height}});
+		});
+	};
 
 	useEffect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		__dndContext.registerDraggable(id, {onDragStart, onDragEnd, payload});
 		return () => {
 			__dndContext.unregisterDraggable(id);
@@ -25,47 +53,44 @@ const BaseDragView: FC<DraggableInnerProps> = (
 		__dndContext.updateDraggable(id, {onDragEnd});
 	}, [onDragEnd]);
 	useEffect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		__dndContext.updateDraggable(id, {payload});
 	}, [payload]);
 
-	const panResponder = useRef(PanResponder.create({
-		onStartShouldSetPanResponder: () => true,
-		onMoveShouldSetPanResponder: () => true,
-		onPanResponderMove: Animated.event<NativeTouchEvent>([null, {dx: pan.x, dy: pan.y}], {
-			useNativeDriver: false,
-			listener: ({nativeEvent: {pageX, pageY}}) => {
-				console.log(pageX, pageY);
-				__dndContext.handleDragMove(id, {x: pageX, y: pageY});
-			},
-		}),
-		onPanResponderGrant: () => {
-			console.warn('Grant');
+	const handler = useAnimatedGestureHandler({
+		onStart: (e, ctx: GestureContext) => {
+			ctx.startX = x.value;
+			ctx.startY = y.value;
+			runOnJS(handleDragStart)({x: e.absoluteX, y: e.absoluteY});
 		},
-		onPanResponderStart: ({nativeEvent: {pageX, pageY}}) => {
-			console.log('Started');
-			__dndContext.handleDragStart(id, {x: pageX, y: pageY});
+		onActive: (e, ctx: GestureContext) => {
+			x.value = ctx.startX + e.translationX;
+			y.value = ctx.startY + e.translationY;
+			runOnJS(handleDragMove)({x: e.absoluteX, y: e.absoluteY});
 		},
-		onPanResponderRelease: ({nativeEvent: {pageX, pageY}}) => {
+		onEnd: e => {
 			if (bounceBack) {
-				Animated.spring(pan, {
-					toValue: {x: 0, y: 0},
-					useNativeDriver: true,
-				}).start();
+				x.value = withSpring(0);
+				y.value = withSpring(0);
 			}
 
-			__dndContext.handleDragEnd(id, {x: pageX, y: pageY});
+			runOnJS(handleDragEnd)({x: e.absoluteX, y: e.absoluteY});
 		},
-	})).current;
+	});
 
-	return <Animated.View
-		style={{transform: pan.getTranslateTransform()}}
-		{...panResponder.panHandlers}
-	>
-		{children}
-	</Animated.View>;
+	const style = useAnimatedStyle(() => ({
+		transform: [{translateX: x.value}, {translateY: y.value}],
+	}));
+
+	return <PanGestureHandler onGestureEvent={handler}>
+		<Animated.View onLayout={onLayout} ref={ref} style={style}>
+			{children}
+		</Animated.View>
+	</PanGestureHandler>;
 };
 
-export const DragView: FC<DraggableProps> = props => <dndContext.Consumer>
-	{value => <BaseDragView {...props} __dndContext={value} />}
-</dndContext.Consumer>;
+export const DragView: FC<DraggableProps> = ({customId, ...props}) => {
+	const id = customId ?? Symbol('dragview');
+	return <dndContext.Consumer>
+		{value => <BaseDragView customId={id} {...props} __dndContext={value} />}
+	</dndContext.Consumer>;
+};

@@ -1,12 +1,13 @@
-import React, {FC, useEffect} from 'react';
-import {LayoutChangeEvent, View} from 'react-native';
+import React, {createRef, FC, useEffect} from 'react';
+import {View} from 'react-native';
 import {dndContext} from './dndContext';
 import {DroppableInnerProps, DroppableProps} from './types';
 
 const BaseDropView: FC<DroppableInnerProps> = (
-	{children, __dndContext, customId, onDrop, onEnter, onLeave, onLayout},
+	{children, __dndContext, customId, onDrop, onEnter, onLeave, payload},
 ) => {
-	const id = customId ?? Symbol('dropview');
+	const id = customId!;
+	const ref = createRef<View>();
 
 	useEffect(() => {
 		__dndContext.registerDroppable(id, {onDrop, onEnter, onLeave});
@@ -24,32 +25,29 @@ const BaseDropView: FC<DroppableInnerProps> = (
 	useEffect(() => {
 		__dndContext.updateDroppable(id, {onLeave});
 	}, [onLeave]);
+	useEffect(() => {
+		__dndContext.updateDroppable(id, {payload});
+	}, [payload]);
 
-	let element: View | undefined;
-
-	const localOnLayout = (event: LayoutChangeEvent) => {
-		if (onLayout) {
-			onLayout(event);
-		}
-
+	const onLayout = () => {
 		measure();
 	};
 
-	const handleRef = (el: any) => {
-		/* eslint-disable */
-		element = el?.getNode ? el.getNode() : el;
-		/* eslint-enable */
-	};
-
 	const measure = () => {
-		element?.measureInWindow((x, y, width, height) => {
+		ref.current?.measureInWindow((x, y, width, height) => {
 			__dndContext.updateDroppable(id, {layout: {x, y, width, height}});
 		});
 	};
 
-	return <View onLayout={localOnLayout} ref={handleRef} style={{zIndex: -1}}>{children}</View>;
+	return <View onLayout={onLayout} ref={ref} style={{zIndex: -1}}>
+		{children}
+	</View>;
 };
 
-export const DropView: FC<DroppableProps> = props => <dndContext.Consumer>
-	{value => <BaseDropView {...props} __dndContext={value} />}
-</dndContext.Consumer>;
+export const DropView: FC<DroppableProps> = ({customId, ...props}) => {
+	const id = customId ?? Symbol('dropview');
+
+	return <dndContext.Consumer>
+		{value => <BaseDropView customId={id} {...props} __dndContext={value} />}
+	</dndContext.Consumer>;
+};

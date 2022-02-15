@@ -30,7 +30,9 @@
   },
   "peerDependencies": {
     "react": "*",
-    "react-native": "^0.64"
+    "react-native": "^0.64",
+    "react-native-gesture-handler": "2.1.1",
+    "react-native-reanimated": "^2.4.1"
   },
   "devDependencies": {
     "@types/react": "^17.0.39",

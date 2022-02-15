@@ -1,9 +1,10 @@
 import {LayoutChangeEvent} from 'react-native';
 
 export type DndId = string | symbol;
+export type DndPayload = unknown;
 export type HandleDropFunction = (
 	draggable: Draggable,
-	position: Position
+	position: Position,
 ) => any;
 export type HandleEnterFunction = (
 	draggable: Draggable,
@@ -35,7 +36,7 @@ export interface Draggable extends LayoutData {
 	dragging: boolean;
 	onDragStart?: HandleDragStartFunction;
 	onDragEnd?: HandleDragEndFunction;
-	payload?: any;
+	payload?: DndPayload;
 }
 
 export interface Droppable extends LayoutData {
@@ -43,6 +44,7 @@ export interface Droppable extends LayoutData {
 	onDrop?: HandleDropFunction;
 	onEnter?: HandleEnterFunction;
 	onLeave?: HandleLeaveFunction;
+	payload?: DndPayload;
 }
 
 export interface DndRegistration {
@@ -60,7 +62,6 @@ export interface DndRegistration {
 export interface State {
 	draggables: Draggable[];
 	droppables: Droppable[];
-	dragOffset: [number, number];
 	currentDragging?: DndId;
 	currentDropping?: DndId;
 }
@@ -88,7 +89,7 @@ export interface DraggableProps {
 	bounceBack?: boolean;
 	onDragStart?: HandleDragStartFunction;
 	onDragEnd?: HandleDragEndFunction;
-	payload?: any;
+	payload?: DndPayload;
 	customId?: DndId;
 }
 
@@ -97,6 +98,7 @@ export interface DroppableProps {
 	onDrop?: HandleDropFunction;
 	onEnter?: HandleEnterFunction;
 	onLeave?: HandleLeaveFunction;
+	payload?: DndPayload;
 	customId?: DndId;
 }
 
